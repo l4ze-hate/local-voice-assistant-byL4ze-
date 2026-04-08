@@ -1,20 +1,22 @@
-Голосовой помощник на основе Python с распознаванием речи, интеграцией ИИ и графическим интерфейсом пользователя. 
+# 🤖 JARVIS Voice Assistant
 
-## Функции 
-- Активация по ключевому слову ("Jarvis") 
-- Голосовые команды 
-- Ответы ИИ (OpenAI) 
-- W
-- Графический интерфейс пользователя для настольных компьютеров 
+A Python-based voice assistant with speech recognition, AI integration, and GUI.
 
-## Технологии 
-- Python 
-- Реализация речи
-- pyttsx3 
-- API OpenAI 
-- CustomTkinter 
+## Features
+- Wake word activation ("Jarvis")
+- Voice commands
+- AI responses (OpenAI)
+- Weather API integration
+- Desktop GUI
 
-## Установка 
+## Technologies
+- Python
+- SpeechRecognition
+- pyttsx3
+- OpenAI API
+- CustomTkinter
 
-```bash 
-pip install -
+## Installation
+
+```bash
+pip install -r requirements.txt
