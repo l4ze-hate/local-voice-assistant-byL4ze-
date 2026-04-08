@@ -1,9 +1,9 @@
-# 🤖 JARVIS Voice Assistant
+# 🤖 JarviX Assistan
 
 A Python-based voice assistant with speech recognition, AI integration, and GUI.
 
 ## Features
-- Wake word activation ("Jarvis")
+- Wake word activation ("JarviX")
 - Voice commands
 - AI responses (OpenAI)
 - Weather API integration
