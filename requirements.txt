@@ -3,6 +3,7 @@ pyttsx3
 pyaudio; python_version < "3.14"
 wikipedia
 openai
+groq
 customtkinter
 requests
 python-dotenv
