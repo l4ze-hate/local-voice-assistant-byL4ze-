@@ -8,22 +8,13 @@ import winsound
 from config import TTS_PROVIDER, TTS_VOICE
 
 
-def _create_engine():
-    try:
-        pyttsx3 = importlib.import_module("pyttsx3")
-    except ModuleNotFoundError as exc:
-        raise RuntimeError(
-            "Missing dependency: pyttsx3. Install with `pip install -r requirements.txt`."
-        ) from exc
-    return pyttsx3.init()
-
 def _speak_edge(text):
-    importlib.import_module("edge_tts")
-
+    """Speak text using Edge TTS with winsound playback."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
         temp_path = temp_file.name
 
     try:
+        # Generate audio with edge-tts
         subprocess.run(
             [
                 sys.executable,
@@ -40,13 +31,35 @@ def _speak_edge(text):
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        winsound.PlaySound(temp_path, winsound.SND_FILENAME)
-        return True
+        
+        if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
+            return False
+        
+        try:
+            winsound.PlaySound(temp_path, winsound.SND_FILENAME)
+            return True
+        except Exception as e:
+            print(f"Playback error: {e}")
+            return False
+    except Exception as e:
+        print(f"TTS error: {e}")
+        return False
     finally:
         try:
             os.remove(temp_path)
         except OSError:
             pass
+
+
+def _create_engine():
+    """Create pyttsx3 engine for fallback TTS."""
+    try:
+        pyttsx3 = importlib.import_module("pyttsx3")
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Missing dependency: pyttsx3. Install with `pip install -r requirements.txt`."
+        ) from exc
+    return pyttsx3.init()
 
 
 def _get_piper_path():
@@ -90,7 +103,7 @@ def _download_piper_voice(voice_name, model_dir="piper_voices"):
 
 
 def _speak_piper(text, voice_name="ru_RU"):
-    """Speak text using Piper TTS."""
+    """Speak text using Piper TTS with Windows media player."""
     piper_exe = _get_piper_path()
     if not piper_exe:
         print("Piper TTS: piper.exe not found. Install Piper first.")
@@ -125,8 +138,12 @@ def _speak_piper(text, voice_name="ru_RU"):
         )
         
         if process.returncode == 0 and os.path.exists(temp_path):
-            winsound.PlaySound(temp_path, winsound.SND_FILENAME)
-            return True
+            try:
+                winsound.PlaySound(temp_path, winsound.SND_FILENAME)
+                return True
+            except Exception as e:
+                print(f"Piper playback error: {e}")
+                return False
         return False
     except subprocess.TimeoutExpired:
         print("Piper TTS timeout")
@@ -142,11 +159,16 @@ def _speak_piper(text, voice_name="ru_RU"):
 
 
 engine = _create_engine()
-_tts_timeout_seconds = 10.0
+_tts_timeout_seconds = 60.0  # Increased from 10s to 60s for longer texts
 
 
 def speak(text):
     print("Ассистент: ", text)
+    
+    # Truncate very long texts to avoid excessive processing time
+    if len(text) > 1000:
+        text = text[:1000] + "..."
+        print("(Text truncated for TTS - too long)")
 
     def _speak_primary():
         if TTS_PROVIDER.lower() == "edge":
@@ -159,32 +181,19 @@ def speak(text):
         engine.say(text)
         engine.runAndWait()
 
-    result = {"ok": False}
-    errors = []
-
-    def _run():
-        try:
-            result["ok"] = _speak_primary()
-        except Exception as exc:
-            errors.append(exc)
-
-        if result["ok"]:
+    # Try primary provider (synchronous, no threading)
+    try:
+        result = _speak_primary()
+        if result:
             return
+    except Exception as exc:
+        print(f"TTS error: {exc}")
 
-        try:
-            _speak_fallback()
-            result["ok"] = True
-        except Exception as exc:
-            errors.append(exc)
-
-    worker = threading.Thread(target=_run, daemon=True)
-    worker.start()
-    worker.join(_tts_timeout_seconds)
-
-    if worker.is_alive():
-        print("TTS timeout. Skipping this phrase to keep assistant responsive.")
-    elif not result["ok"] and errors:
-        print(f"TTS error: {errors[-1]}")
+    # Try fallback if primary failed
+    try:
+        _speak_fallback()
+    except Exception as exc:
+        print(f"TTS error (fallback): {exc}")
 
 
 def set_tts_provider(provider):
