@@ -42,3 +42,6 @@ Thumbs.db
 
 # --- Logs / runtime artifacts ---
 *.log
+.logs/
+.data/
+.cache/

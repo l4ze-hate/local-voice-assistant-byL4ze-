@@ -108,6 +108,65 @@ def _resolve_device_index():
     return None
 
 
+def _find_best_microphone():
+    """Auto-detect the best working microphone by testing signal strength.
+    
+    Returns:
+        Best device index or None to use system default
+    """
+    sounddevice = _get_sounddevice()
+    numpy = _get_numpy()
+    if sounddevice is None or numpy is None:
+        return None
+    
+    # Candidate microphones to try (common real microphones, not virtual ones)
+    candidates = []
+    try:
+        devices = sounddevice.query_devices()
+        for i, device in enumerate(devices):
+            name = device.get('name', '').lower()
+            # Skip virtual devices (SteelSeries, Sonar, etc.)
+            if device.get('max_input_channels', 0) > 0:
+                if any(x in name for x in ['virtual', 'sonar', 'stream', 'mixer']):
+                    continue
+                # Prefer USBdevices and real microphones
+                if any(x in name for x in ['microphone', 'mic', 'fifine', 'realtek', 'input']):
+                    candidates.append(i)
+    except:
+        return None
+    
+    if not candidates:
+        return None
+    
+    # Test each candidate
+    best_device = None
+    best_level = 0
+    sample_rate = 16000
+    test_duration = 1  # 1 second test
+    
+    for device_id in candidates[:5]:  # Test max 5 devices to not waste time
+        try:
+            audio = sounddevice.rec(
+                int(test_duration * sample_rate),
+                samplerate=sample_rate,
+                channels=1,
+                dtype='int16',
+                device=device_id,
+                timeout=2
+            )
+            sounddevice.wait(timeout=2)
+            
+            # Measure signal strength
+            level = max(abs(audio.min()), abs(audio.max()))
+            if level > best_level:
+                best_level = level
+                best_device = device_id
+        except:
+            pass
+    
+    return best_device if best_level > 100 else None
+
+
 def _record_with_sounddevice(speech_recognition, device_index, duration=6, sample_rate=16000):
     sounddevice = _get_sounddevice()
     numpy = _get_numpy()
@@ -115,6 +174,8 @@ def _record_with_sounddevice(speech_recognition, device_index, duration=6, sampl
         return None
 
     frames = int(duration * sample_rate)
+    
+    # Record audio
     audio = sounddevice.rec(
         frames,
         samplerate=sample_rate,
@@ -123,7 +184,18 @@ def _record_with_sounddevice(speech_recognition, device_index, duration=6, sampl
         device=device_index,
     )
     sounddevice.wait()
-    audio_bytes = numpy.asarray(audio).tobytes()
+    
+    # Convert to numpy array
+    audio = numpy.asarray(audio)
+    
+    # Amplify weak signals (common with some USB microphones)
+    max_signal = max(abs(audio.min()), abs(audio.max()))
+    if max_signal > 0 and max_signal < 5000:  # Weak signal threshold
+        # Amplify to bring into better range for STT
+        scale_factor = min(15000 / max_signal, 4.0)  # Cap amplification
+        audio = (audio.astype(numpy.float32) * scale_factor).astype(numpy.int16)
+    
+    audio_bytes = audio.tobytes()
     return speech_recognition.AudioData(audio_bytes, sample_rate, 2)
 
 
@@ -228,6 +300,10 @@ def listen():
 
     recognizer = speech_recognition.Recognizer()
     device_index = _resolve_device_index()
+    
+    # If no explicit microphone selected, try to find the best one
+    if device_index is None:
+        device_index = _find_best_microphone()
 
     try:
         if not _microphone_list_shown:
@@ -241,15 +317,16 @@ def listen():
             print(f"Using microphone index: {device_index}")
             _selected_microphone_shown = True
 
-        # Try VAD-based listening if enabled
-        if _vad_enabled:
-            audio = _listen_with_vad(speech_recognition, recognizer, device_index)
+        # Prefer sounddevice + numpy for more reliable microphone access
+        sounddevice = _get_sounddevice()
+        numpy = _get_numpy()
+        
+        if sounddevice is not None and numpy is not None:
+            audio = _record_with_sounddevice(speech_recognition, device_index, duration=6, sample_rate=16000)
             if audio is None:
-                # Fallback to timeout-based listening
-                with speech_recognition.Microphone(device_index=device_index) as source:
-                    recognizer.adjust_for_ambient_noise(source)
-                    audio = recognizer.listen(source, timeout=5, phrase_time_limit=7)
+                return ""
         else:
+            # Fallback to SpeechRecognition (requires PyAudio)
             with speech_recognition.Microphone(device_index=device_index) as source:
                 recognizer.adjust_for_ambient_noise(source)
                 audio = recognizer.listen(source, timeout=5, phrase_time_limit=7)
@@ -258,7 +335,7 @@ def listen():
         if not _microphone_warning_shown:
             print(f"Microphone error: {exc}")
             print(
-                "Tip: install sounddevice + numpy, or use Python 3.12 with PyAudio."
+                "Tip: install sounddevice + numpy, or python 3.12 with PyAudio."
             )
             _microphone_warning_shown = True
         return ""

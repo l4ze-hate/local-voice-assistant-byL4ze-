@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 class AICache:
     """Cache for AI responses to avoid repeated API calls."""
     
-    def __init__(self, cache_file="ai_cache.json", ttl_hours=24):
+    def __init__(self, cache_file=".data/ai_cache.json", ttl_hours=24):
         """
         Initialize cache.
         
@@ -16,6 +16,8 @@ class AICache:
             cache_file: Path to cache file
             ttl_hours: Time to live for cache entries (hours)
         """
+        # Ensure cache directory exists
+        os.makedirs(os.path.dirname(cache_file) or '.', exist_ok=True)
         self.cache_file = cache_file
         self.ttl = timedelta(hours=ttl_hours)
         self.cache = {}

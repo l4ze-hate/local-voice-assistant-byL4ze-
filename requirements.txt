@@ -12,3 +12,5 @@ numpy
 edge-tts
 pydub
 pillow
+# Optional: For offline Piper TTS support, install from: https://github.com/rhasspy/piper
+# pip install piper-tts
