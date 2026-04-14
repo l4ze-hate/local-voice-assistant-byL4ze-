@@ -3,6 +3,8 @@ key.env
 .env
 .env.*
 *.env
+*.local
+!.env.example
 
 # --- Python bytecode / cache ---
 __pycache__/
@@ -32,7 +34,11 @@ pip-wheel-metadata/
 .idea/
 .vscode/
 *.code-workspace
+.qwen/
 
 # --- OS files ---
 .DS_Store
 Thumbs.db
+
+# --- Logs / runtime artifacts ---
+*.log

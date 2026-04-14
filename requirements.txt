@@ -1,7 +1,13 @@
 SpeechRecognition
 pyttsx3
-pyaudio
+pyaudio; python_version < "3.14"
 wikipedia
 openai
 customtkinter
 requests
+python-dotenv
+sounddevice
+numpy
+edge-tts
+pydub
+pillow

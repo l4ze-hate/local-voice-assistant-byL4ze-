@@ -1,23 +1,22 @@
 import webbrowser
 import datetime
-from text_to_speech import speak
 
 def execute(command):
+    command = command.lower()
+
     if "время" in command:
         now = datetime.datetime.now().strftime("%H:%M")
-        speak(f"Сейчас {now}")
-        
-    elif "открой браузер" in command:
+        return f"Сейчас {now}"
+
+    if "открой браузер" in command or "open browser" in command:
         webbrowser.open("https://www.google.com")
-        speak("Открываю браузер")
-        
-    elif "Открой ютуб" in command:
+        return "Открываю браузер"
+
+    if "открой ютуб" in command or "открой youtube" in command or "open youtube" in command:
         webbrowser.open("https://www.youtube.com")
-        speak("Открываю YouTube")
-        
-    elif "Конец работы" in command:
-        speak("До встречи!")
-        exit
-    
-    else:
-        speak("Неизвестная команда")
+        return "Открываю YouTube"
+
+    if "конец работы" in command or "stop" in command or "exit" in command:
+        return "exit"
+
+    return None
