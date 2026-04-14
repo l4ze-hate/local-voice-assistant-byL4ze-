@@ -34,9 +34,7 @@ def _speak_edge(text):
                 "--text",
                 text,
                 "--write-media",
-                temp_path,
-                "--format",
-                "riff-24khz-16bit-mono-pcm",
+                temp_path
             ],
             check=True,
             stdout=subprocess.DEVNULL,
