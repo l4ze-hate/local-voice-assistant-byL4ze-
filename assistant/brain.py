@@ -5,6 +5,7 @@ from assistant.commands import execute
 from assistant.wake_word import detect, extract_command
 import threading
 import logging
+import time
 
 # Setup logging
 logger = logging.getLogger('Brain')
@@ -33,6 +34,7 @@ def run(callback=None, command_callback=None):
 
     speak("Ассистент готов к работе")
     emit("Ассистент готов к работе")
+    time.sleep(0.5)  # Pause for audio to stop before listening
 
     try:
         while True:
@@ -42,6 +44,7 @@ def run(callback=None, command_callback=None):
                 break
                 
             logger.info("Listening...")
+            time.sleep(0.1)  # Brief pause before listening
             text = listen()
             if not text:
                 continue
@@ -55,12 +58,14 @@ def run(callback=None, command_callback=None):
 
             logger.info("Wake word detected")
             speak("Слушаю команду")
+            time.sleep(0.5)  # Pause for audio to stop before listening
 
             # Support one-shot phrase: "jarvis open browser".
             command = extract_command(text)
             if not command:
                 logger.info("No command in phrase, asking for clarification")
                 speak("Пожалуйста, дайте команду")
+                time.sleep(0.5)  # Pause for audio to stop before listening
                 command = listen()
 
             if not command:
@@ -89,10 +94,13 @@ def run(callback=None, command_callback=None):
             else:
                 logger.info(f"Command not recognized, using AI: {command}")
                 speak("Ищу ответ в базе знаний")
+                time.sleep(0.3)  # Pause before AI query
                 answer = ask_ai(command)
                 logger.info(f"AI response received ({len(answer)} chars)")
                 speak(answer)
                 emit(answer)
+            
+            time.sleep(0.5)  # Pause after speaking before listening again
     finally:
         # Always clean up when exiting
         reset_stop()
