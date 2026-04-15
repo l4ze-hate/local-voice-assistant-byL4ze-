@@ -109,62 +109,26 @@ def _resolve_device_index():
 
 
 def _find_best_microphone():
-    """Auto-detect the best working microphone by testing signal strength.
+    """Find and use only Fifine USB microphone.
     
     Returns:
-        Best device index or None to use system default
+        Fifine microphone device index or None to use system default
     """
     sounddevice = _get_sounddevice()
-    numpy = _get_numpy()
-    if sounddevice is None or numpy is None:
+    if sounddevice is None:
         return None
     
-    # Candidate microphones to try (common real microphones, not virtual ones)
-    candidates = []
     try:
         devices = sounddevice.query_devices()
         for i, device in enumerate(devices):
             name = device.get('name', '').lower()
-            # Skip virtual devices (SteelSeries, Sonar, etc.)
-            if device.get('max_input_channels', 0) > 0:
-                if any(x in name for x in ['virtual', 'sonar', 'stream', 'mixer']):
-                    continue
-                # Prefer USBdevices and real microphones
-                if any(x in name for x in ['microphone', 'mic', 'fifine', 'realtek', 'input']):
-                    candidates.append(i)
+            # Look for Fifine USB microphone only
+            if 'fifine' in name and device.get('max_input_channels', 0) > 0:
+                return i  # Return first Fifine found
     except:
         return None
     
-    if not candidates:
-        return None
-    
-    # Test each candidate
-    best_device = None
-    best_level = 0
-    sample_rate = 16000
-    test_duration = 1  # 1 second test
-    
-    for device_id in candidates[:5]:  # Test max 5 devices to not waste time
-        try:
-            audio = sounddevice.rec(
-                int(test_duration * sample_rate),
-                samplerate=sample_rate,
-                channels=1,
-                dtype='int16',
-                device=device_id,
-                timeout=2
-            )
-            sounddevice.wait(timeout=2)
-            
-            # Measure signal strength
-            level = max(abs(audio.min()), abs(audio.max()))
-            if level > best_level:
-                best_level = level
-                best_device = device_id
-        except:
-            pass
-    
-    return best_device if best_level > 100 else None
+    return None  # No Fifine found
 
 
 def _record_with_sounddevice(speech_recognition, device_index, duration=6, sample_rate=16000):
