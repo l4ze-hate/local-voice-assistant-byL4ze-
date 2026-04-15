@@ -5,6 +5,7 @@ import subprocess
 import sys
 import shutil
 import winsound
+import threading
 from config import TTS_PROVIDER, TTS_VOICE
 
 
@@ -12,21 +13,21 @@ def _play_wav(wav_path):
     """Play WAV file with fallback options."""
     if not os.path.exists(wav_path):
         return False
-    
+
     # Method 1: winsound (reliable, built-in)
     try:
         winsound.PlaySound(wav_path, winsound.SND_FILENAME | winsound.SND_SYNC)
         return True
     except Exception:
         pass
-    
+
     # Method 2: Windows Media Player via comtypes (if available)
     try:
         from comtypes.client import CreateObject
         player = CreateObject("MediaPlayer.MediaPlayer.7")
         player.URL = os.path.abspath(wav_path)
         player.controls.play()
-        
+
         # Wait for playback to complete
         import time
         while player.playState == 3:  # 3 = playing
@@ -34,7 +35,7 @@ def _play_wav(wav_path):
         return True
     except Exception:
         pass
-    
+
     # Method 3: pygame (if available)
     try:
         import pygame
@@ -46,7 +47,7 @@ def _play_wav(wav_path):
         return True
     except Exception:
         pass
-    
+
     return False
 
 
@@ -71,15 +72,15 @@ def _speak_edge(text):
             ],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=10,  # 10s — достаточно для Edge TTS, избегать зависания
         )
-        
+
         if result.returncode != 0:
             return False
-        
+
         if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
             return False
-        
+
         return _play_wav(temp_path)
     except Exception:
         return False
@@ -106,7 +107,7 @@ def _get_piper_path():
     # sys.executable is the Python interpreter path (e.g., .venv/Scripts/python.exe)
     # piper.exe should be in the same directory
     venv_scripts_dir = os.path.dirname(sys.executable)
-    
+
     piper_paths = [
         os.path.join(venv_scripts_dir, "piper.exe"),  # In venv Scripts
         os.path.join(os.environ.get("ProgramFiles", ""), "piper", "piper.exe"),
@@ -134,15 +135,9 @@ def _download_piper_voice(voice_name, model_dir=".cache/piper_voices"):
     config_file = os.path.join(model_dir, f"{voice_name}.onnx.json")
 
     if not os.path.exists(voice_file) or not os.path.exists(config_file):
-        # Try multiple mirror URLs
-        urls = [
-            # Official Rhasspy CDN
-            f"https://huggingface.co/rhasspy/piper-voices-en/resolve/v1.0.0/{voice_name}",
-            f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/{voice_name}",
-            # Direct GitHub raw content (if available)
-            f"https://raw.githubusercontent.com/rhasspy/piper/master/voices/{voice_name}.onnx",
-        ]
-        
+        # Build correct HuggingFace URLs for Piper voices
+        urls = _build_piper_urls(voice_name)
+
         import urllib.request
 
         for base_url in urls:
@@ -150,10 +145,10 @@ def _download_piper_voice(voice_name, model_dir=".cache/piper_voices"):
                 print(f"[Piper] Trying to download from {base_url}...")
                 onnx_url = f"{base_url}.onnx"
                 json_url = f"{base_url}.onnx.json"
-                
+
                 urllib.request.urlretrieve(onnx_url, voice_file, reporthook=lambda a, b, c: None)
                 print(f"[Piper] Downloaded {voice_name}.onnx ({os.path.getsize(voice_file) / 1024 / 1024:.1f} MB)")
-                
+
                 urllib.request.urlretrieve(json_url, config_file)
                 print(f"[Piper] Downloaded {voice_name}.onnx.json")
                 return True
@@ -168,10 +163,28 @@ def _download_piper_voice(voice_name, model_dir=".cache/piper_voices"):
                 except:
                     pass
                 continue
-        
+
         print(f"[Piper] All download URLs failed for voice: {voice_name}")
         return False
     return True
+
+
+def _build_piper_urls(voice_name: str) -> list:
+    """Build correct download URLs for Piper voices on HuggingFace."""
+    # Russian voices have a special path structure
+    if voice_name.startswith("ru_"):
+        base = f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/ru/{voice_name}/ruslan/medium/{voice_name}-ruslan-medium"
+        return [base]
+
+    # English and other languages — generic fallback
+    parts = voice_name.split("_")
+    if len(parts) >= 2:
+        lang_code = f"{parts[0]}_{parts[1]}"
+        base = f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/{lang_code}/{voice_name}/medium/{voice_name}-medium"
+        return [base]
+
+    # Last resort fallback
+    return [f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/{voice_name}"]
 
 
 def _speak_piper(text, voice_name="ru_RU"):
@@ -180,26 +193,37 @@ def _speak_piper(text, voice_name="ru_RU"):
         from piper import PiperVoice
     except ImportError:
         return False
-    
-    model_dir = ".cache/piper_voices"
+
+    model_dir = os.path.abspath(".cache/piper_voices")
     os.makedirs(model_dir, exist_ok=True)
-    
+
     try:
-        # Load voice - Piper will auto-download if needed
+        # Check if voice files exist
+        voice_file = os.path.join(model_dir, f"{voice_name}.onnx")
+        config_file = os.path.join(model_dir, f"{voice_name}.onnx.json")
+
+        if not os.path.exists(voice_file) or not os.path.exists(config_file):
+            print("[Piper] Voice files not found, downloading...")
+            # Download voice
+            if not _download_piper_voice(voice_name, model_dir):
+                return False
+
+        # Load voice from existing files
         voice = PiperVoice.load(voice_name, model_dir)
-        
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
             temp_path = temp_file.name
-        
+
         # Synthesize speech to WAV file
         with open(temp_path, "wb") as wav_file:
             voice.synthesize(text, wav_file)
-        
+
         file_size = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
         if file_size > 0:
             return _play_wav(temp_path)
         return False
     except Exception as e:
+        print(f"[Piper] Error: {e}")
         return False
     finally:
         try:
@@ -209,17 +233,29 @@ def _speak_piper(text, voice_name="ru_RU"):
             pass
 
 
-engine = _create_engine()
+# Lazy, thread-safe pyttsx3 engine initialization
+_engine = None
+_engine_lock = threading.Lock()
 _tts_timeout_seconds = 60.0  # Increased from 10s to 60s for longer texts
+
+
+def _get_engine():
+    """Lazy, thread-safe pyttsx3 engine initialization (double-check locking)."""
+    global _engine
+    if _engine is None:
+        with _engine_lock:
+            if _engine is None:
+                _engine = _create_engine()
+    return _engine
 
 
 def speak(text):
     """Speak text using configured TTS provider with fallback chain.
-    
+
     Order: Edge TTS → Piper → pyttsx3
     """
     print("Ассистент: ", text)
-    
+
     # Truncate very long texts to avoid excessive processing time
     if len(text) > 1000:
         text = text[:1000] + "..."
@@ -227,7 +263,7 @@ def speak(text):
 
     # Try providers in order
     providers_to_try = []
-    
+
     # Add primary provider first
     if TTS_PROVIDER.lower() == "edge":
         providers_to_try.append(("edge", _speak_edge))
@@ -235,10 +271,10 @@ def speak(text):
     elif TTS_PROVIDER.lower() == "piper":
         providers_to_try.append(("piper", lambda t: _speak_piper(t, TTS_VOICE)))
         providers_to_try.append(("edge", _speak_edge))
-    
+
     # Always add pyttsx3 as final fallback
     providers_to_try.append(("pyttsx3", _speak_fallback))
-    
+
     # Try each provider
     for provider_name, provider_func in providers_to_try:
         try:
@@ -251,14 +287,15 @@ def speak(text):
                     return
         except Exception:
             continue
-    
+
     # If all providers fail, just print the text
     pass
 
 
 def _speak_fallback(text):
-    """Fallback TTS using pyttsx3."""
+    """Fallback TTS using pyttsx3 with lazy engine init."""
     try:
+        engine = _get_engine()
         engine.say(text)
         engine.runAndWait()
     except Exception:
@@ -271,7 +308,6 @@ def set_tts_provider(provider):
     import config
     config.TTS_PROVIDER = provider
     # Also update module-level variable
-    import builtins
     import sys
     # Re-import config to get updated value
     import importlib

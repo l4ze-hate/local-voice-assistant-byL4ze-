@@ -56,3 +56,15 @@ Thumbs.db
 # --- Build artifacts (ignore generated) ---
 build/
 dist/
+
+# --- Audio artifacts ---
+*.wav
+*.mp3
+*.ogg
+
+# --- Runtime logs ---
+assistant.log
+*.pyo
+
+# --- Temp env files ---
+*.env.bak

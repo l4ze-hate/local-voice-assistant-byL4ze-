@@ -110,14 +110,14 @@ def _resolve_device_index():
 
 def _find_best_microphone():
     """Find and use only Fifine USB microphone.
-    
+
     Returns:
         Fifine microphone device index or None to use system default
     """
     sounddevice = _get_sounddevice()
     if sounddevice is None:
         return None
-    
+
     try:
         devices = sounddevice.query_devices()
         for i, device in enumerate(devices):
@@ -125,73 +125,106 @@ def _find_best_microphone():
             # Look for Fifine USB microphone only
             if 'fifine' in name and device.get('max_input_channels', 0) > 0:
                 return i  # Return first Fifine found
-    except:
+    except Exception:
         return None
-    
+
     return None  # No Fifine found
 
 
 def _record_with_sounddevice(speech_recognition, device_index, duration=6, sample_rate=16000):
+    """Record audio with stop-event support for graceful shutdown.
+
+    Records in small chunks so that _stop_event can interrupt the recording.
+    """
     sounddevice = _get_sounddevice()
     numpy = _get_numpy()
     if sounddevice is None or numpy is None:
         return None
 
-    frames = int(duration * sample_rate)
-    
-    # Record audio
-    audio = sounddevice.rec(
-        frames,
-        samplerate=sample_rate,
-        channels=1,
-        dtype="int16",
-        device=device_index,
-    )
-    sounddevice.wait()
-    
-    # Convert to numpy array
-    audio = numpy.asarray(audio)
-    
+    total_frames = int(duration * sample_rate)
+    chunk_size = sample_rate // 5  # 200 ms chunks for stop-check
+
+    audio_chunks = []
+    frames_recorded = 0
+
+    try:
+        stream = sounddevice.InputStream(
+            device=device_index,
+            channels=1,
+            samplerate=sample_rate,
+            dtype="int16",
+            blocksize=chunk_size,
+        )
+        stream.start()
+
+        while frames_recorded < total_frames:
+            # Check for graceful stop request every chunk
+            try:
+                from assistant.brain import is_stopped
+            except ImportError:
+                def is_stopped():
+                    return False
+
+            if is_stopped():
+                break
+
+            audio_chunk, _ = stream.read(chunk_size)
+            audio_chunks.append(audio_chunk)
+            frames_recorded += chunk_size
+
+    except Exception:
+        pass
+    finally:
+        try:
+            stream.stop()
+            stream.close()
+        except Exception:
+            pass
+
+    if not audio_chunks:
+        return None
+
+    all_audio = numpy.concatenate(audio_chunks)
+
     # Amplify weak signals (common with some USB microphones)
-    max_signal = max(abs(audio.min()), abs(audio.max()))
-    if max_signal > 0 and max_signal < 5000:  # Weak signal threshold
-        # Amplify to bring into better range for STT
-        scale_factor = min(15000 / max_signal, 4.0)  # Cap amplification
-        audio = (audio.astype(numpy.float32) * scale_factor).astype(numpy.int16)
-    
-    audio_bytes = audio.tobytes()
+    max_signal = max(abs(all_audio.min()), abs(all_audio.max()))
+    if max_signal > 0 and max_signal < 5000:
+        scale_factor = min(15000 / max_signal, 4.0)
+        all_audio = (all_audio.astype(numpy.float32) * scale_factor).astype(numpy.int16)
+
+    audio_bytes = all_audio.tobytes()
     return speech_recognition.AudioData(audio_bytes, sample_rate, 2)
 
 
 def _listen_with_vad(speech_recognition, recognizer, device_index):
     """
     Listen with VAD for faster speech detection.
-    
+
     Returns AudioData when speech is detected and completed.
     """
     sounddevice = _get_sounddevice()
     numpy = _get_numpy()
-    
+
     if sounddevice is None or numpy is None:
         return None
-    
+
     try:
         from assistant.vad import SimpleVADDetector
     except ImportError:
         return None
-    
+
     vad = SimpleVADDetector(sample_rate=16000)
     sample_rate = 16000
     frame_duration = 0.020  # 20ms frames
     frame_size = int(sample_rate * frame_duration)  # 320 samples
-    
+
     max_speech_duration = 8  # seconds
     max_frames = int(max_speech_duration / frame_duration)  # 400 frames
-    
+
     audio_buffer = []
     frame_count = 0
     speech_started = False
-    
+
     try:
         stream = sounddevice.InputStream(
             device=device_index,
@@ -201,22 +234,22 @@ def _listen_with_vad(speech_recognition, recognizer, device_index):
             blocksize=frame_size,
         )
         stream.start()
-        
+
         while frame_count < max_frames:
             audio_frame, _ = stream.read(frame_size)
-            
+
             vad_state = vad.process_frame(audio_frame)
-            
+
             if vad_state == 'start':
                 speech_started = True
                 audio_buffer.append(audio_frame)
                 frame_count += 1
-            
+
             elif vad_state == 'speaking':
                 if speech_started:
                     audio_buffer.append(audio_frame)
                     frame_count += 1
-            
+
             elif vad_state == 'end':
                 # Speech ended, return collected audio
                 if speech_started and len(audio_buffer) > 5:
@@ -230,10 +263,10 @@ def _listen_with_vad(speech_recognition, recognizer, device_index):
                     vad.reset()
                     audio_buffer = []
                     speech_started = False
-            
+
             elif not speech_started:
                 frame_count += 1
-        
+
         # Timeout - return what we have if speech was detected
         if speech_started and len(audio_buffer) > 5:
             all_audio = numpy.concatenate(audio_buffer)
@@ -241,11 +274,11 @@ def _listen_with_vad(speech_recognition, recognizer, device_index):
             stream.stop()
             stream.close()
             return speech_recognition.AudioData(audio_bytes, sample_rate, 2)
-        
+
         stream.stop()
         stream.close()
         return None
-        
+
     except Exception:
         try:
             stream.stop()
@@ -255,7 +288,15 @@ def _listen_with_vad(speech_recognition, recognizer, device_index):
         return None
 
 
-def listen():
+def listen(timeout_seconds: float = 8.0):
+    """Listen for speech with VAD support and graceful stop.
+
+    Args:
+        timeout_seconds: Maximum recording duration when VAD is disabled.
+
+    Returns:
+        Recognized text (lowercase) or empty string on failure/no speech.
+    """
     global _microphone_warning_shown, _recognition_warning_shown, _microphone_list_shown, _selected_microphone_shown, _selected_microphone_index
 
     speech_recognition = _get_sr()
@@ -264,7 +305,7 @@ def listen():
 
     recognizer = speech_recognition.Recognizer()
     device_index = _resolve_device_index()
-    
+
     # If no explicit microphone selected, try to find the best one
     if device_index is None:
         device_index = _find_best_microphone()
@@ -281,21 +322,29 @@ def listen():
             print(f"Using microphone index: {device_index}")
             _selected_microphone_shown = True
 
-        # Prefer sounddevice + numpy for more reliable microphone access
+        # Decide which listening method to use
         sounddevice = _get_sounddevice()
         numpy = _get_numpy()
-        
-        if sounddevice is not None and numpy is not None:
-            audio = _record_with_sounddevice(speech_recognition, device_index, duration=6, sample_rate=16000)
-            if audio is None:
-                return ""
+        audio = None
+
+        if sounddevice is not None and numpy is not None and is_vad_enabled():
+            # Use VAD-based listening — stops when speech ends
+            audio = _listen_with_vad(speech_recognition, recognizer, device_index)
+        elif sounddevice is not None and numpy is not None:
+            # Fallback: fixed-duration recording with stop-event support
+            audio = _record_with_sounddevice(
+                speech_recognition, device_index,
+                duration=timeout_seconds, sample_rate=16000
+            )
         else:
             # Fallback to SpeechRecognition (requires PyAudio)
             with speech_recognition.Microphone(device_index=device_index) as source:
                 recognizer.adjust_for_ambient_noise(source)
-                audio = recognizer.listen(source, timeout=5, phrase_time_limit=7)
+                audio = recognizer.listen(source, timeout=5, phrase_time_limit=timeout_seconds)
+
+        if audio is None:
+            return ""
     except Exception as exc:
-        # Keep app running even when microphone backend is unavailable.
         if not _microphone_warning_shown:
             print(f"Microphone error: {exc}")
             print(

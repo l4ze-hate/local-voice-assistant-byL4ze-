@@ -1,6 +1,5 @@
 """Audio level monitor and visualizer for the GUI."""
 import threading
-import time
 import sounddevice as sd
 import numpy as np
 

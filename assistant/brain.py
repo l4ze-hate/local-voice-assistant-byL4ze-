@@ -27,7 +27,7 @@ def is_stopped():
 def run(callback=None, command_callback=None):
     reset_stop()
     logger.info("Assistant started")
-    
+
     def emit(text):
         if callback:
             callback(f"AI: {text}")
@@ -42,7 +42,7 @@ def run(callback=None, command_callback=None):
             if is_stopped():
                 logger.info("Stop requested")
                 break
-                
+
             logger.info("Listening...")
             time.sleep(0.1)  # Brief pause before listening
             text = listen()
@@ -74,7 +74,7 @@ def run(callback=None, command_callback=None):
 
             logger.info(f"Command: {command}")
             speak(f"Выполняю: {command}")
-            
+
             # Send command to UI for logging
             if command_callback:
                 command_callback(command)
@@ -99,7 +99,7 @@ def run(callback=None, command_callback=None):
                 logger.info(f"AI response received ({len(answer)} chars)")
                 speak(answer)
                 emit(answer)
-            
+
             time.sleep(0.5)  # Pause after speaking before listening again
     finally:
         # Always clean up when exiting
@@ -108,7 +108,7 @@ def run(callback=None, command_callback=None):
 
     speak("До встречи!")
     emit("До встречи!")
-    
+
     return True
 
 if __name__ == "__main__":

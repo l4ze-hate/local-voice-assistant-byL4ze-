@@ -25,11 +25,11 @@ class CommandHistory:
         """Search history for matching query."""
         if not query:
             return self.history
-        
+
         query_lower = query.lower()
         return [
             entry for entry in self.history
-            if query_lower in entry["command"].lower() 
+            if query_lower in entry["command"].lower()
             or query_lower in entry["response"].lower()
         ]
 

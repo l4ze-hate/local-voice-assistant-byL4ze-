@@ -5,7 +5,6 @@ from assistant.text_to_speech import set_tts_provider, get_tts_provider
 from assistant.audio_visualizer import AudioLevelMonitor
 from assistant.history_manager import CommandHistory
 import threading
-import time
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
@@ -33,12 +32,12 @@ class App(ctk.CTk):
         self.title("JarviX Assistant")
         self.geometry("850x600")
         self.minsize(750, 550)
-        
+
         self.configure(fg_color=COLORS["bg_primary"])
 
         self.is_running = False
         self.build_tag = "build-2026-04-14-v2"
-        
+
         # Initialize new components
         self.audio_monitor = AudioLevelMonitor()
         self.history = CommandHistory()
@@ -85,7 +84,7 @@ class App(ctk.CTk):
         # Audio level indicator
         self.audio_frame = ctk.CTkFrame(self.header, fg_color="transparent")
         self.audio_frame.grid(row=1, column=1, sticky="e", padx=(20, 0))
-        
+
         self.audio_label = ctk.CTkLabel(
             self.audio_frame,
             text="Audio Level:",
@@ -93,7 +92,7 @@ class App(ctk.CTk):
             text_color=COLORS["text_secondary"],
         )
         self.audio_label.grid(row=0, column=0, padx=(0, 5))
-        
+
         self.audio_bar = ctk.CTkProgressBar(
             self.audio_frame,
             width=150,
@@ -117,7 +116,7 @@ class App(ctk.CTk):
         # Mode toggle buttons
         self.mode_frame = ctk.CTkFrame(self.main_card, fg_color="transparent")
         self.mode_frame.grid(row=2, column=0, padx=20, pady=(0, 8), sticky="w")
-        
+
         self.log_btn = ctk.CTkButton(
             self.mode_frame,
             text="📋 Log",
@@ -130,7 +129,7 @@ class App(ctk.CTk):
             text_color=COLORS["text_primary"],
         )
         self.log_btn.grid(row=0, column=0, padx=(0, 5))
-        
+
         self.history_btn = ctk.CTkButton(
             self.mode_frame,
             text="📚 History",
@@ -161,7 +160,7 @@ class App(ctk.CTk):
         self.search_frame = ctk.CTkFrame(self.main_card, fg_color="transparent")
         self.search_frame.grid(row=3, column=0, padx=20, pady=(0, 14), sticky="ew")
         self.search_frame.grid_columnconfigure(0, weight=1)
-        
+
         self.search_entry = ctk.CTkEntry(
             self.search_frame,
             placeholder_text="🔍 Search history...",
@@ -172,7 +171,7 @@ class App(ctk.CTk):
         )
         self.search_entry.grid(row=0, column=0, padx=(0, 10), sticky="ew")
         self.search_entry.bind("<KeyRelease>", lambda e: self.on_search_change())
-        
+
         self.search_frame.grid_forget()
 
         self.mic_frame = ctk.CTkFrame(self.main_card, fg_color="transparent")
@@ -229,7 +228,7 @@ class App(ctk.CTk):
             text_color=COLORS["text_secondary"],
         )
         self.tts_label.grid(row=0, column=4, padx=(10, 0), sticky="w")
-        
+
         current_tts = get_tts_provider().lower()
         self.tts_var = ctk.StringVar(value="Edge" if current_tts == "edge" else "Piper")
         self.tts_selector = ctk.CTkOptionMenu(
@@ -302,21 +301,21 @@ class App(ctk.CTk):
         )
         self.test_button.grid(row=0, column=2, sticky="ew", padx=(8, 0))
         self.refresh_microphones()
-        
+
         # Start audio level monitoring update loop
         self.update_audio_level()
 
     def _append_log(self, text):
         if not text.startswith("AI:"):
             return
-        
+
         response_text = text.replace("AI: ", "", 1)
-        
+
         # Add to history
         if hasattr(self, '_last_command'):
             self.history.add_entry(self._last_command, response_text)
             del self._last_command
-        
+
         # Update textbox
         self.textbox.configure(state="normal")
         self.textbox.insert("end", response_text + "\n")
@@ -326,12 +325,12 @@ class App(ctk.CTk):
     def log(self, text):
         # run() works in a background thread; UI updates must happen on main thread
         self.after(0, self._append_log, text)
-    
+
     def log_command(self, command):
         """Log a user command for history tracking."""
         self._last_command = command
         self.after(0, self._append_command_to_log, command)
-    
+
     def _append_command_to_log(self, command):
         """Append command to the log display."""
         self.textbox.configure(state="normal")
@@ -344,7 +343,7 @@ class App(ctk.CTk):
         self.textbox.delete("1.0", "end")
         self.textbox.insert("end", "Log cleared.\n")
         self.textbox.configure(state="disabled")
-    
+
     def show_log_mode(self):
         """Show regular log mode."""
         self.showing_history = True
@@ -352,12 +351,12 @@ class App(ctk.CTk):
         self.textbox.grid(row=3, column=0, padx=20, pady=(0, 14), sticky="nsew")
         self.log_btn.configure(fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"])
         self.history_btn.configure(fg_color=COLORS["bg_tertiary"], hover_color=COLORS["accent"])
-        
+
         self.textbox.configure(state="normal")
         self.textbox.delete("1.0", "end")
         self.textbox.insert("end", "Assistant replies will appear here.\n")
         self.textbox.configure(state="disabled")
-    
+
     def show_history_mode(self):
         """Show history mode with search."""
         self.showing_history = False
@@ -365,30 +364,30 @@ class App(ctk.CTk):
         self.search_frame.grid(row=3, column=0, padx=20, pady=(0, 14), sticky="ew")
         self.log_btn.configure(fg_color=COLORS["bg_tertiary"], hover_color=COLORS["accent"])
         self.history_btn.configure(fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"])
-        
+
         self.search_entry.delete(0, "end")
         self._display_history()
-    
+
     def _display_history(self, filtered=None):
         """Display history in textbox."""
         entries = filtered if filtered is not None else self.history.get_all()
-        
+
         self.textbox.grid(row=3, column=0, padx=20, pady=(0, 14), sticky="nsew")
         self.search_frame.grid(row=4, column=0, padx=20, pady=(0, 14), sticky="ew")
-        
+
         self.textbox.configure(state="normal")
         self.textbox.delete("1.0", "end")
-        
+
         if not entries:
             self.textbox.insert("end", "No history entries yet.\n")
         else:
             for entry in reversed(entries):
                 self.textbox.insert("end", f"[{entry['timestamp']}] {entry['command']}\n")
                 self.textbox.insert("end", f"  → {entry['response']}\n\n")
-        
+
         self.textbox.see("end")
         self.textbox.configure(state="disabled")
-    
+
     def on_search_change(self):
         """Handle search input change."""
         query = self.search_entry.get()
@@ -397,13 +396,13 @@ class App(ctk.CTk):
             self._display_history(filtered)
         else:
             self._display_history()
-    
+
     def update_audio_level(self):
         """Update the audio level indicator."""
         if self.audio_monitor.is_active:
             level = self.audio_monitor.get_level()
             self.audio_bar.set(level)
-            
+
             # Change color based on level
             if level > 0.5:
                 self.audio_bar.configure(progress_color=COLORS["danger"])
@@ -411,7 +410,7 @@ class App(ctk.CTk):
                 self.audio_bar.configure(progress_color=COLORS["warning"])
             else:
                 self.audio_bar.configure(progress_color=COLORS["success"])
-        
+
         # Schedule next update (50ms = 20 FPS)
         self.after(50, self.update_audio_level)
 
@@ -432,11 +431,11 @@ class App(ctk.CTk):
     def on_mic_selected(self, value):
         index = self.mic_options_map.get(value)
         set_microphone_index(index)
-    
+
     def on_vad_toggle(self):
         """Handle VAD toggle."""
         set_vad_enabled(self.vad_var.get())
-    
+
     def on_tts_provider_changed(self, value):
         """Handle TTS provider change."""
         provider = value.lower()
@@ -477,7 +476,7 @@ class App(ctk.CTk):
             self.log("AI: Произошла ошибка в ассистенте.")
         finally:
             self.after(0, self.on_session_end)
-    
+
     def start(self):
         if self.is_running:
             return
@@ -488,24 +487,23 @@ class App(ctk.CTk):
         self.status.configure(text="● Status: Listening", text_color=COLORS["success"])
 
         # Start audio monitoring
-        mic_idx = self.audio_monitor.device_index
         self.audio_monitor.start()
 
         threading.Thread(target=self._run_assistant, daemon=True).start()
-    
+
     def stop(self):
         """Stop the assistant."""
         if not self.is_running:
             return
-        
+
         self.is_running = False
         self.start_button.grid_remove()  # Keep both hidden temporarily
         self.stop_button.grid_remove()
         self.status.configure(text="● Status: Stopping...", text_color=COLORS["warning"])
-        
+
         # Request brain to stop
         request_stop()
-        
+
         # Stop audio monitoring immediately
         self.audio_monitor.stop()
         self.audio_bar.set(0)

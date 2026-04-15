@@ -22,5 +22,5 @@ LOCAL_AI_MODEL = os.getenv("LOCAL_AI_MODEL", "llama2")
 WAKE_WORD = "JARVIS"
 LANGUAGE = "ru-RU"
 MICROPHONE_INDEX = os.getenv("MICROPHONE_INDEX")
-TTS_PROVIDER = os.getenv("TTS_PROVIDER", "edge")
-TTS_VOICE = os.getenv("TTS_VOICE", "ru-RU-SvetlanaNeural")
+TTS_PROVIDER = os.getenv("TTS_PROVIDER", "piper")  # Default: piper (offline)
+TTS_VOICE = os.getenv("TTS_VOICE", "ru_RU")  # Piper voice name
