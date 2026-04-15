@@ -14,14 +14,46 @@ echo.
 :: Check if virtual environment exists
 if not exist ".venv\Scripts\python.exe" (
     echo [SETUP] Creating virtual environment...
-    py -3 -m venv .venv
+    python -m venv .venv 2>nul
     if errorlevel 1 (
-        echo [ERROR] Failed to create virtual environment.
-        pause
-        exit /b 1
+        py -3 -m venv .venv 2>nul
+        if errorlevel 1 (
+            py -m venv .venv 2>nul
+            if errorlevel 1 (
+                echo [ERROR] Failed to create virtual environment.
+                echo [INFO] Python not found in PATH. Please do one of the following:
+                echo [INFO] 1. Install Python from https://www.python.org/downloads/
+                echo [INFO]    (Check 'Add Python to PATH' during installation)
+                echo [INFO] 2. Or run:  "C:\Path\To\Python\python.exe" -m venv .venv
+                echo.
+                echo [INFO] Trying to find Python in common locations...
+                for %%P in (
+                    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+                    "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+                    "%LOCALAPPDATA%\Programs\Python\Python310\python.exe"
+                    "C:\Python312\python.exe"
+                    "C:\Python311\python.exe"
+                    "C:\Program Files\Python312\python.exe"
+                    "C:\Program Files\Python311\python.exe"
+                ) do (
+                    if exist "%%~P" (
+                        echo [INFO] Found Python at: %%~P
+                        "%%~P" -m venv .venv
+                        if not errorlevel 1 (
+                            echo [OK] Virtual environment created with: %%~P
+                            goto venv_created
+                        )
+                    )
+                )
+                echo [ERROR] No Python installation found. Please install Python first.
+                pause
+                exit /b 1
+            )
+        )
     )
     echo [OK] Virtual environment created
 )
+:venv_created
 
 :: Install build requirements
 echo [SETUP] Installing build dependencies...

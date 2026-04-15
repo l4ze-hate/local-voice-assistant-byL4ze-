@@ -45,14 +45,37 @@ goto setup
 :: Check if virtual environment exists
 if not exist ".venv\Scripts\python.exe" (
     echo [SETUP] Creating virtual environment...
-    py -3 -m venv .venv
+    python -m venv .venv 2>nul
     if errorlevel 1 (
-        echo [ERROR] Failed to create virtual environment.
-        pause
-        exit /b 1
+        py -3 -m venv .venv 2>nul
+        if errorlevel 1 (
+            py -m venv .venv 2>nul
+            if errorlevel 1 (
+                echo [ERROR] Python not found. Trying common locations...
+                for %%P in (
+                    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+                    "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+                    "%LOCALAPPDATA%\Programs\Python\Python310\python.exe"
+                    "C:\Python312\python.exe"
+                    "C:\Python311\python.exe"
+                ) do (
+                    if exist "%%~P" (
+                        "%%~P" -m venv .venv
+                        if not errorlevel 1 (
+                            echo [OK] Virtual environment created
+                            goto run_venv_ok
+                        )
+                    )
+                )
+                echo [ERROR] No Python found. Install from https://www.python.org/downloads/
+                pause
+                exit /b 1
+            )
+        )
     )
     echo [OK] Virtual environment created
 )
+:run_venv_ok
 
 :: Install base requirements
 echo [SETUP] Installing Python packages...
