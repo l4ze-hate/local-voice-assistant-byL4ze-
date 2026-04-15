@@ -1,120 +1,322 @@
-# JarviX Assistant
+# Local Voice Assistant 🎙️🤖
 
-A Python-based voice assistant with speech recognition, AI integration, and GUI.
+**Локальный голосовой ассистент на русском языке с бесплатным AI**
 
-## Features
-- Wake word activation ("JarviX")
-- Voice commands
-- **Multiple AI providers**: Groq (free, fast), Ollama (local), LM Studio, or OpenAI
-- Speech-to-text and text-to-speech
-- Desktop GUI with CustomTkinter
-- Response caching
+Полнофункциональный голосовой ассистент с:
+- ✅ **Распознавание речи** (русский язык)
+- ✅ **Синтез речи** (offline TTS без интернета)
+- ✅ **Бесплатный AI** (Groq API - 60 реквестов/мин)
+- ✅ **Голосовая обратная связь** на каждое действие
+- ✅ **Графический интерфейс** (GUI)
+- ✅ **Кэширование** ответов AI на 24 часа
 
-## Technologies
-- Python
-- SpeechRecognition
-- pyttsx3
-- OpenAI Python SDK (compatible with local servers and Groq)
-- CustomTkinter
-- Edge TTS
-- Groq API
+## Быстрый старт
 
-## Installation
+### 1️⃣ Установка
 
 ```bash
+git clone <repository>
+cd local-voice-assistant-byL4ze-
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
+pip install piper-tts
 ```
 
-## Environment setup
+### 2️⃣ Настройка
 
-Edit `key.env` with your configuration:
+Создайте файл `.env` с Groq API ключом:
 
 ```env
-# Choose provider: "groq", "openai", or "local"
-AI_PROVIDER=groq
-
-# For Groq (FREE, no installation needed):
-GROQ_API_KEY=your-groq-api-key-here
-GROQ_MODEL=mixtral-8x7b-32768
-
-# For OpenAI provider:
-# OPEN_API_KEY=your-key-here
-# OPENAI_MODEL=gpt-4o-mini
-
-# For local provider (Ollama/LM Studio):
-# LOCAL_AI_URL=http://localhost:11434
-# LOCAL_AI_MODEL=llama2
-
-# Audio
-# MICROPHONE_INDEX=1
+GROQ_API_KEY=gsk_your_api_key_here
 ```
 
-## Quick Start with Groq (RECOMMENDED - FREE & FASTEST)
+Получить бесплатный ключ: https://console.groq.com/keys
 
-### 1. Get Groq API Key
-1. Go to [console.groq.com](https://console.groq.com)
-2. Sign up
-3. Copy your API key
+### 3️⃣ Проверка системы
 
-### 2. Update `key.env`
-```env
-AI_PROVIDER=groq
-GROQ_API_KEY=<your-key-here>
+```bash
+python verify_setup.py
 ```
 
-### 3. Run
+Должно вывести: **✓ All systems ready!**
+
+### 4️⃣ Запуск
+
+**Командная строка (CLI):**
 ```bash
 python main.py
 ```
 
-✅ **No installation needed, instant replies!**
+**Графический интерфейс (GUI):**
+```bash
+python app_gui.py
+```
 
 ---
 
-## Alternative: Local with Ollama
+## Как использовать
 
-### 1. Install Ollama
-Download from [ollama.ai](https://ollama.ai)
+### Голосовые команды
 
-### 2. Pull a model
-```bash
-ollama pull llama2
+1. **Запустите программу**: `python main.py`
+2. **Скажите wake word**: "JARVIS" (ассистент ответит "Слушаю команду")
+3. **Задайте вопрос или команду**
+4. **Получите голосовой ответ**
+
+### Примеры
+
+- "JARVIS, какое сейчас время?"
+- "JARVIS, расскажи о космосе"
+- "JARVIS, напиши функцию на Python"
+- "JARVIS, открой Google в браузере"
+- "JARVIS, какая погода?"
+
+---
+
+## Голосовые сообщения
+
+Ассистент дает голосовую обратную связь:
+
+1. 🔊 **"Ассистент готов к работе"** - старт программы
+2. 🔊 **"Распознал: [ваш текст]"** - распознанная речь
+3. 🔊 **"Слушаю команду"** - wake word обнаружен
+4. 🔊 **"Выполняю: [команда]"** - обработка команды
+5. 🔊 **"Ищу ответ в базе знаний"** - поиск через AI
+6. 🔊 **[ОТВЕТ НА ВОПРОС]** - голосовой результат
+7. 🔊 **"До встречи!"** - завершение программы
+
+---
+
+## Технические детали
+
+### AI Engine
+- **Провайдер**: Groq API (бесплатный)
+- **Модель**: llama-3.3-70b-versatile (быстрая и мощная)
+- **Лимит**: 60 запросов/мин (достаточно для личного использования)
+- **Язык**: Русский (ru-RU)
+- **Кэш**: ✅ Ответы кэшируются на 24 часа
+
+### Text-to-Speech (Синтез речи)
+
+| Провайдер | Преимущество | Примечание |
+|-----------|-------------|----------|
+| **Piper** | 🏆 Default - Offline, быстро, качественно | Автоматическая загрузка моделей |
+| Edge TTS | Резервный вариант | Требует интернет |
+| pyttsx3 | Fallback | Встроенный Windows |
+
+**Кэш моделей**: `.cache/piper_voices/` (автоматически загружается)
+
+### Speech-to-Text (Распознавание)
+
+- **Метод**: sounddevice + Google Speech API
+- **Язык**: Russian (ru-RU)
+- **Авто-выбор микрофона**: ✅ Автоматическое определение лучшего устройства
+- **Усиление сигнала**: Автоматическое усиление слабых микрофонов
+
+---
+
+## Структура проекта
+
+```
+├── main.py                      # 🎬 CLI запуск
+├── app_gui.py                   # 🎨 GUI интерфейс
+├── config.py                    # ⚙️ Конфигурация
+├── verify_setup.py              # ✅ Проверка системы
+├── requirements.txt             # 📦 Зависимости
+├── .env                         # 🔐 API ключи (gitignore)
+│
+├── assistant/                   # 🤖 Модули ассистента
+│   ├── brain.py                # Главная логика + голос
+│   ├── ai_module.py            # Groq API интеграция
+│   ├── speech_to_text.py       # Распознавание речи
+│   ├── text_to_speech.py       # Синтез речи (Piper/Edge/pyttsx3)
+│   ├── commands.py             # Встроенные команды
+│   ├── wake_word.py            # Детектор "JARVIS"
+│   ├── history_manager.py      # История вопросов
+│   ├── ai_cache.py             # Кэш ответов
+│   └── ...
+│
+├── tests/                       # 🧪 Диагностические тесты
+│   ├── test_voice_system.py    # Полная система
+│   ├── test_piper_diagnostics.py
+│   ├── test_tts_voice.py
+│   ├── test_voice_verify.py
+│   └── ...
+│
+├── scripts/                     # 🔧 Утилиты
+├── .data/                       # 💾 AI кэш
+├── .logs/                       # 📋 Логи
+└── .cache/                      # 🎵 Piper модели
 ```
 
-### 3. Start Ollama (runs on http://localhost:11434)
+---
+
+## Встроенные команды
+
+- **"открой [приложение]"** - Запуск приложения
+- **"поиск [слово]"** - Поиск в браузере
+- **"время"** - Текущее время
+- **"дата"** - Текущая дата
+- **"выход" / "пока"** - Завершение
+
+Все остальные вопросы обрабатываются через **Groq AI** 🤖
+
+---
+
+## Диагностика проблем
+
+### ❌ Нет звука
+
 ```bash
-ollama serve
+python verify_setup.py           # Проверить систему
+python tests/test_voice_system.py  # Тест Piper TTS
 ```
 
-### 4. Update `key.env`
+**Решение:**
+1. Проверьте громкость в Windows (Settings → Sound)
+2. Убедитесь, что микрофон включен
+3. Дайте приложению разрешение на звук
+
+### ❌ Микрофон не работает
+
+```bash
+python tests/test_voice_verify.py  # Диагностика микрофона
+```
+
+**Решение:**
+1. Проверьте микрофон в Windows Settings
+2. Используйте USB микрофон/гарнитуру
+3. Перезагрузитесь
+
+### ❌ Ошибка AI / "Invalid API key"
+
+**Решение:**
+1. Проверьте `.env` файл - должна быть строка: `GROQ_API_KEY=gsk_...`
+2. Получите новый ключ: https://console.groq.com/keys
+3. Убедитесь, что есть интернет-соединение
+
+### ❌ Piper не работает
+
+```bash
+pip install --upgrade piper-tts
+python verify_setup.py
+```
+
+**Решение:**
+1. Переустановите: `pip install --upgrade piper-tts`
+2. Проверьте место: `.venv\Scripts\piper.exe` должен существовать
+3. Смотрите логи: `.logs/`
+
+---
+
+## Конфигурация
+
+### config.py
+
+```python
+# AI
+AI_PROVIDER = "groq"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+CACHE_DURATION = 86400  # 24 часа
+
+# TTS  
+TTS_PROVIDER = "piper"
+TTS_VOICE = "ru_RU"
+
+# STT
+LANGUAGE = "ru-RU"
+WAKE_WORD = "jarvis"
+```
+
+### .env (локальный, не коммитить!)
+
 ```env
-AI_PROVIDER=local
-LOCAL_AI_URL=http://localhost:11434
-LOCAL_AI_MODEL=llama2
+GROQ_API_KEY=gsk_your_key_here
 ```
 
-### 5. Run the assistant
+---
+
+## Программирование примеров
+
+### Использование в своем коде
+
+```python
+from assistant.brain import run
+from assistant.text_to_speech import speak
+from assistant.speech_to_text import listen
+from assistant.ai_module import ask_ai
+
+# Запустить главный цикл с GUI callback
+def on_message(text):
+    print(f"GUI: {text}")
+
+run(callback=on_message)
+
+# Или отдельно
+speak("Привет мир!")
+text = listen()
+answer = ask_ai(text)
+```
+
+---
+
+## Performance
+
+| Операция | Время |
+|---------|--------|
+| Холодный старт | ~2-3 сек |
+| Распознавание речи | ~1-2 сек |
+| AI генерация ответа | 1-5 сек (зависит от вопроса) |
+| Синтез речи + воспроизведение | ~1-2 сек |
+| **Полный цикл** | ~4-10 сек |
+
+---
+
+## FAQ
+
+**Q: Нужно ли устанавливать Ollama или другое ПО?**  
+A: Нет! Используется бесплатный Groq API - работает из коробки.
+
+**Q: Это работает offline?**  
+A: Частично: Piper TTS работает offline, но AI требует интернета для Groq API.
+
+**Q: На русском языке работает?**  
+A: Да! Оптимизирован для русского языка (ru-RU).
+
+**Q: Можно ли использовать другой AI?**  
+A: Да! модифицируйте `config.py` для OpenAI, Ollama или другого провайдера.
+
+**Q: Сколько это стоит?**  
+A: FREE! Groq API дают 60 реквестов/мин бесплатно - этого достаточно для личного использования.
+
+---
+
+## Системные требования
+
+- **OS**: Windows 10+ или Linux/macOS
+- **Python**: 3.8+
+- **RAM**: 2 GB+
+- **Интернет**: Требуется для Groq API
+- **Микрофон**: Встроенный или USB
+
+---
+
+## Лицензия
+
+MIT
+
+## Автор
+
+L4ze - https://github.com/L4ze
+
+---
+
+**Ready?** 🚀
+
 ```bash
-python main.py
+python verify_setup.py    # Проверка
+python main.py            # Запуск
 ```
 
----
-
-## Alternative: LM Studio
-
-1. Download from [lmstudio.ai](https://lmstudio.ai)
-2. Load a model and start the server (default: http://localhost:1234)
-3. Update `key.env`:
-```env
-AI_PROVIDER=local
-LOCAL_AI_URL=http://localhost:1234
-LOCAL_AI_MODEL=<your-model-name>
-```
-4. Run: `python main.py`
-
----
-
-## Configuration
-
-- `.env` - default settings (committed to repo)
-- `key.env` - your local overrides (gitignored for privacy)
+Скажите "JARVIS" и наслаждайтесь вашим голосовым ассистентом! 🎙️
