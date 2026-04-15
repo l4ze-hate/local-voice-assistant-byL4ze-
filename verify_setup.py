@@ -1,14 +1,19 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Quick verification that all systems are ready before running main.py
 """
 import sys
 import os
 
+# Fix Windows console encoding
+if sys.platform == 'win32':
+    os.system('chcp 65001 > nul')
+
 def check_python_version():
     """Check Python version"""
     version = sys.version_info
-    print(f"✓ Python {version.major}.{version.minor}.{version.micro}")
+    print(f"[OK] Python {version.major}.{version.minor}.{version.micro}")
     if version.major < 3 or (version.major == 3 and version.minor < 8):
         print("  WARNING: Python 3.8+ required")
         return False
@@ -31,9 +36,9 @@ def check_imports():
     for module, name in imports:
         try:
             __import__(module)
-            print(f"  ✓ {name}")
+            print(f"  [OK] {name}")
         except ImportError:
-            print(f"  ✗ {name} - NOT INSTALLED")
+            print(f"  [ERROR] {name} - NOT INSTALLED")
             all_ok = False
     
     return all_ok
@@ -43,17 +48,17 @@ def check_config():
     print("\nChecking configuration:")
     try:
         from config import AI_PROVIDER, GROQ_API_KEY, TTS_PROVIDER
-        print(f"  ✓ AI Provider: {AI_PROVIDER}")
-        print(f"  ✓ TTS Provider: {TTS_PROVIDER}")
+        print(f"  [OK] AI Provider: {AI_PROVIDER}")
+        print(f"  [OK] TTS Provider: {TTS_PROVIDER}")
         
         if not GROQ_API_KEY or GROQ_API_KEY.startswith("gsk_"):
-            print(f"  ✓ Groq API Key configured")
+            print(f"  [OK] Groq API Key configured")
         else:
-            print(f"  ✗ Groq API Key may be invalid")
+            print(f"  [ERROR] Groq API Key may be invalid")
             return False
         return True
     except Exception as e:
-        print(f"  ✗ Config error: {e}")
+        print(f"  [ERROR] Config error: {e}")
         return False
 
 def check_piper():
@@ -65,17 +70,17 @@ def check_piper():
             '.venv', 'Scripts', 'piper.exe'
         )
         if os.path.exists(piper_exe):
-            print(f"  ✓ Piper executable found")
+            print(f"  [OK] Piper executable found")
         else:
-            print(f"  ✗ Piper not found at {piper_exe}")
+            print(f"  [ERROR] Piper not found at {piper_exe}")
             return False
         
         # Try to import and test
         from piper import PiperVoice
-        print(f"  ✓ PiperVoice module imported")
+        print(f"  [OK] PiperVoice module imported")
         return True
     except Exception as e:
-        print(f"  ✗ Piper error: {e}")
+        print(f"  [ERROR] Piper error: {e}")
         return False
 
 def test_voice():
@@ -85,10 +90,10 @@ def test_voice():
         from assistant.text_to_speech import speak
         print("  Testing: 'Система готова к работе'")
         speak("Система готова к работе")
-        print("  ✓ Voice test complete")
+        print("  [OK] Voice test complete")
         return True
     except Exception as e:
-        print(f"  ✗ Voice test failed: {e}")
+        print(f"  [ERROR] Voice test failed: {e}")
         return False
 
 def main():
@@ -111,7 +116,7 @@ def main():
             result = check_func()
             results.append((name, result))
         except Exception as e:
-            print(f"\n✗ {name} check error: {e}")
+            print(f"\n[ERROR] {name} check error: {e}")
             results.append((name, False))
     
     print("\n" + "=" * 60)
@@ -119,15 +124,15 @@ def main():
     print("=" * 60)
     
     for name, result in results:
-        status = "✓" if result else "✗"
+        status = "[OK]" if result else "[ERROR]"
         print(f"{status} {name}")
     
     all_ok = all(result for _, result in results)
     
     if all_ok:
-        print("\n✓ All systems ready! Run: python main.py")
+        print("\n[OK] All systems ready! Run: python main.py")
     else:
-        print("\n✗ Some systems not ready. Fix above issues first.")
+        print("\n[ERROR] Some systems not ready. Fix above issues first.")
     
     print("=" * 60)
 
