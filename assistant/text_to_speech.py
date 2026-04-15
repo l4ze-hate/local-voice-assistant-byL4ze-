@@ -3,6 +3,7 @@ import tempfile
 import os
 import subprocess
 import sys
+import shutil
 import winsound
 from config import TTS_PROVIDER, TTS_VOICE
 
@@ -65,64 +66,98 @@ def _create_engine():
 
 def _get_piper_path():
     """Get Piper executable path."""
-    # Check if piper is installed
+    # sys.executable is the Python interpreter path (e.g., .venv/Scripts/python.exe)
+    # piper.exe should be in the same directory
+    venv_scripts_dir = os.path.dirname(sys.executable)
+    
     piper_paths = [
+        os.path.join(venv_scripts_dir, "piper.exe"),  # In venv Scripts
         os.path.join(os.environ.get("ProgramFiles", ""), "piper", "piper.exe"),
         os.path.join(os.environ.get("LOCALAPPDATA", ""), "piper", "piper.exe"),
-        "piper.exe",  # If in PATH
     ]
-    
+
     for path in piper_paths:
-        if os.path.exists(path) or path == "piper.exe":
+        if os.path.exists(path):
             return path
+
+    # Check PATH separately
+    path = shutil.which("piper.exe") or shutil.which("piper")
+    if path:
+        return path
+
     return None
 
 
 def _download_piper_voice(voice_name, model_dir=".cache/piper_voices"):
     """Download Piper voice if not already present."""
     if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-    
+        os.makedirs(model_dir, exist_ok=True)
+
     voice_file = os.path.join(model_dir, f"{voice_name}.onnx")
     config_file = os.path.join(model_dir, f"{voice_name}.onnx.json")
-    
+
     if not os.path.exists(voice_file) or not os.path.exists(config_file):
-        # Download from official Piper repository
-        base_url = f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/ru/ru_RU/{voice_name}"
-        import urllib.request
+        # Try multiple mirror URLs
+        urls = [
+            # Official Rhasspy CDN
+            f"https://huggingface.co/rhasspy/piper-voices-en/resolve/v1.0.0/{voice_name}",
+            f"https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/{voice_name}",
+            # Direct GitHub raw content (if available)
+            f"https://raw.githubusercontent.com/rhasspy/piper/master/voices/{voice_name}.onnx",
+        ]
         
-        try:
-            urllib.request.urlretrieve(f"{base_url}/{voice_file}", voice_file)
-            urllib.request.urlretrieve(f"{base_url}/{config_file}", config_file)
-            return True
-        except Exception:
-            return False
+        import urllib.request
+
+        for base_url in urls:
+            try:
+                print(f"[Piper] Trying to download from {base_url}...")
+                onnx_url = f"{base_url}.onnx"
+                json_url = f"{base_url}.onnx.json"
+                
+                urllib.request.urlretrieve(onnx_url, voice_file, reporthook=lambda a, b, c: None)
+                print(f"[Piper] Downloaded {voice_name}.onnx ({os.path.getsize(voice_file) / 1024 / 1024:.1f} MB)")
+                
+                urllib.request.urlretrieve(json_url, config_file)
+                print(f"[Piper] Downloaded {voice_name}.onnx.json")
+                return True
+            except Exception as e:
+                print(f"[Piper] Failed: {e}")
+                # Cleanup failed downloads
+                try:
+                    if os.path.exists(voice_file):
+                        os.remove(voice_file)
+                    if os.path.exists(config_file):
+                        os.remove(config_file)
+                except:
+                    pass
+                continue
+        
+        print(f"[Piper] All download URLs failed for voice: {voice_name}")
+        return False
     return True
 
 
 def _speak_piper(text, voice_name="ru_RU"):
-    """Speak text using Piper TTS (offline, no API key required)."""
+    """Speak text using Piper TTS (offline, auto-downloads models)."""
     piper_exe = _get_piper_path()
     if not piper_exe:
         return False
     
+    # Create cache directory  
     model_dir = ".cache/piper_voices"
-    if not _download_piper_voice(voice_name, model_dir):
-        return False
-    
-    voice_file = os.path.join(model_dir, f"{voice_name}.onnx")
-    config_file = os.path.join(model_dir, f"{voice_name}.onnx.json")
+    os.makedirs(model_dir, exist_ok=True)
     
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
         temp_path = temp_file.name
 
     try:
-        # Run Piper TTS
+        # Run Piper with text input and output to WAV file
+        # Piper will auto-download models on first run if --download-dir is set
         cmd = [
             piper_exe,
-            "-m", voice_file,
-            "-c", config_file,
-            "-f", temp_path,
+            "--output-file", temp_path,
+            "--voice", voice_name,
+            "--download-dir", model_dir,
         ]
         
         process = subprocess.run(
@@ -130,17 +165,23 @@ def _speak_piper(text, voice_name="ru_RU"):
             input=text.encode("utf-8"),
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=15,
+            stderr=subprocess.PIPE,
+            timeout=60,  # Increased timeout for first-time model download
         )
         
-        if process.returncode == 0 and os.path.exists(temp_path):
+        if process.returncode == 0 and os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
             try:
                 # Use SND_SYNC for synchronous playback
                 winsound.PlaySound(temp_path, winsound.SND_FILENAME | winsound.SND_SYNC)
                 return True
             except Exception:
                 return False
+        elif process.returncode != 0:
+            stderr_msg = process.stderr.decode('utf-8', errors='ignore') if process.stderr else ""
+            if "Downloaded" in stderr_msg or "Downloading" in stderr_msg:
+                # Model is downloading, try again next time
+                pass
+            return False
         return False
     except subprocess.TimeoutExpired:
         return False
