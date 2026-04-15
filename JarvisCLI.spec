@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('config.py', '.'), ('assistant', 'assistant')],
+    datas=[('.env.example', '.'), ('config.py', '.'), ('assistant', 'assistant')],
     hiddenimports=['groq', 'edge_tts', 'speech_recognition', 'sounddevice', 'numpy', 'piper'],
     hookspath=[],
     hooksconfig={},
@@ -35,4 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['assistant.ico'],
 )
