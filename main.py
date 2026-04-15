@@ -1,10 +1,9 @@
-from assistant.speech_to_text import listen
-from assistant.commands import execute
-from assistant.text_to_speech import speak
+#!/usr/bin/env python
+"""
+Local Voice Assistant - Main Entry Point
+"""
+from assistant.brain import run
 
-speak("Ассистент готов к работе")
-    
-while True:
-    command = listen()
-    if command:
-        execute(command)
+if __name__ == "__main__":
+    # Run the main assistant loop with voice feedback
+    run()
