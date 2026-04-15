@@ -34,11 +34,15 @@ if errorlevel 1 (
 
 :: Install application requirements
 echo [SETUP] Installing application dependencies...
-".venv\Scripts\python.exe" -m pip install -q -r requirements.txt
+".venv\Scripts\python.exe" -m pip install -q --prefer-binary --only-binary ":all:" -r requirements.txt
 if errorlevel 1 (
-    echo [ERROR] Failed to install dependencies.
-    pause
-    exit /b 1
+    echo [WARNING] Some packages failed binary install, retrying without --only-binary...
+    ".venv\Scripts\python.exe" -m pip install -q --prefer-binary -r requirements.txt
+    if errorlevel 1 (
+        echo [ERROR] Failed to install dependencies.
+        pause
+        exit /b 1
+    )
 )
 
 :: Install Piper TTS
