@@ -138,59 +138,41 @@ def _download_piper_voice(voice_name, model_dir=".cache/piper_voices"):
 
 
 def _speak_piper(text, voice_name="ru_RU"):
-    """Speak text using Piper TTS (offline, auto-downloads models)."""
-    piper_exe = _get_piper_path()
-    if not piper_exe:
+    """Speak text using Piper TTS via Python API."""
+    try:
+        from piper import PiperVoice
+    except ImportError:
         return False
     
-    # Create cache directory  
     model_dir = ".cache/piper_voices"
     os.makedirs(model_dir, exist_ok=True)
     
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-        temp_path = temp_file.name
-
     try:
-        # Run Piper with text input and output to WAV file
-        # Piper will auto-download models on first run if --download-dir is set
-        cmd = [
-            piper_exe,
-            "--output-file", temp_path,
-            "--voice", voice_name,
-            "--download-dir", model_dir,
-        ]
+        # Load voice - Piper will auto-download if needed
+        voice = PiperVoice.load(voice_name, model_dir)
         
-        process = subprocess.run(
-            cmd,
-            input=text.encode("utf-8"),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            timeout=60,  # Increased timeout for first-time model download
-        )
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+            temp_path = temp_file.name
         
-        if process.returncode == 0 and os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+        # Synthesize speech to WAV file
+        with open(temp_path, "wb") as wav_file:
+            voice.synthesize(text, wav_file)
+        
+        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
             try:
                 # Use SND_SYNC for synchronous playback
                 winsound.PlaySound(temp_path, winsound.SND_FILENAME | winsound.SND_SYNC)
                 return True
             except Exception:
                 return False
-        elif process.returncode != 0:
-            stderr_msg = process.stderr.decode('utf-8', errors='ignore') if process.stderr else ""
-            if "Downloaded" in stderr_msg or "Downloading" in stderr_msg:
-                # Model is downloading, try again next time
-                pass
-            return False
-        return False
-    except subprocess.TimeoutExpired:
         return False
     except Exception:
         return False
     finally:
         try:
-            os.remove(temp_path)
-        except OSError:
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                os.remove(temp_path)
+        except:
             pass
 
 
