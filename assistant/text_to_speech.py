@@ -8,6 +8,48 @@ import winsound
 from config import TTS_PROVIDER, TTS_VOICE
 
 
+def _play_wav(wav_path):
+    """Play WAV file with fallback options."""
+    if not os.path.exists(wav_path):
+        return False
+    
+    # Method 1: winsound (reliable, built-in)
+    try:
+        winsound.PlaySound(wav_path, winsound.SND_FILENAME | winsound.SND_SYNC)
+        return True
+    except Exception:
+        pass
+    
+    # Method 2: Windows Media Player via comtypes (if available)
+    try:
+        from comtypes.client import CreateObject
+        player = CreateObject("MediaPlayer.MediaPlayer.7")
+        player.URL = os.path.abspath(wav_path)
+        player.controls.play()
+        
+        # Wait for playback to complete
+        import time
+        while player.playState == 3:  # 3 = playing
+            time.sleep(0.1)
+        return True
+    except Exception:
+        pass
+    
+    # Method 3: pygame (if available)
+    try:
+        import pygame
+        pygame.mixer.init()
+        sound = pygame.mixer.Sound(wav_path)
+        sound.play()
+        import time
+        time.sleep(sound.get_length())
+        return True
+    except Exception:
+        pass
+    
+    return False
+
+
 def _speak_edge(text):
     """Speak text using Edge TTS with winsound playback."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
@@ -38,12 +80,7 @@ def _speak_edge(text):
         if not os.path.exists(temp_path) or os.path.getsize(temp_path) == 0:
             return False
         
-        try:
-            # Use SND_SYNC for synchronous playback (wait for sound to complete)
-            winsound.PlaySound(temp_path, winsound.SND_FILENAME | winsound.SND_SYNC)
-            return True
-        except Exception:
-            return False
+        return _play_wav(temp_path)
     except Exception:
         return False
     finally:
@@ -158,15 +195,11 @@ def _speak_piper(text, voice_name="ru_RU"):
         with open(temp_path, "wb") as wav_file:
             voice.synthesize(text, wav_file)
         
-        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
-            try:
-                # Use SND_SYNC for synchronous playback
-                winsound.PlaySound(temp_path, winsound.SND_FILENAME | winsound.SND_SYNC)
-                return True
-            except Exception:
-                return False
+        file_size = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
+        if file_size > 0:
+            return _play_wav(temp_path)
         return False
-    except Exception:
+    except Exception as e:
         return False
     finally:
         try:
