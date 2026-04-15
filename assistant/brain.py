@@ -41,45 +41,54 @@ def run(callback=None, command_callback=None):
                 logger.info("Stop requested")
                 break
                 
+            logger.info("Listening...")
             text = listen()
             if not text:
                 continue
 
             logger.info(f"Recognized: {text}")
+            speak(f"Распознал: {text}")
+            emit(f"Распознал: {text}")
 
             if not detect(text):
                 continue
 
             logger.info("Wake word detected")
+            speak("Слушаю команду")
 
             # Support one-shot phrase: "jarvis open browser".
             command = extract_command(text)
             if not command:
-                speak("Слушаю вас")
+                logger.info("No command in phrase, asking for clarification")
+                speak("Пожалуйста, дайте команду")
                 command = listen()
 
             if not command:
+                logger.info("No command received")
                 continue
 
-            logger.info(f"Executing command: {command}")
-
+            logger.info(f"Command: {command}")
+            speak(f"Выполняю: {command}")
+            
             # Send command to UI for logging
             if command_callback:
                 command_callback(command)
 
+            logger.info(f"Executing command: {command}")
             result = execute(command)
 
             if result == "exit":
                 logger.info("Exit command received")
-                speak("Выключаюсь")
+                speak("До встречи!")
                 break
 
             if result:
-                logger.info(f"Command result: {result}")
+                logger.info(f"Command executed: {result}")
                 speak(result)
                 emit(result)
             else:
-                logger.info(f"Sending to AI: {command}")
+                logger.info(f"Command not recognized, using AI: {command}")
+                speak("Ищу ответ в базе знаний")
                 answer = ask_ai(command)
                 logger.info(f"AI response received ({len(answer)} chars)")
                 speak(answer)
