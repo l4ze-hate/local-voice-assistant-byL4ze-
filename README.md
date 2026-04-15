@@ -12,7 +12,7 @@
 
 ## Быстрый старт
 
-### 1️⃣ Установка
+### 1️⃣ Установка из исходников
 
 ```bash
 git clone <repository>
@@ -22,6 +22,30 @@ python -m venv .venv
 pip install -r requirements.txt
 pip install piper-tts
 ```
+
+### 🚀 Или запуск через скрипты
+
+```bash
+# Перейдите в папку scripts/ и запустите:
+scripts\run.bat         # Универсальный лаунчер (GUI/CLI)
+scripts\run_app.bat     # Быстрый запуск GUI
+scripts\run_cli.bat     # Быстрый запуск CLI
+```
+
+### 📦 Или сборка в .exe (без установки Python)
+
+```bash
+# Автоматическая сборка:
+build.bat
+
+# Результат в папке dist/:
+dist\JarvisCLI.exe      # Консольная версия (~75 MB)
+dist\JarvisGUI.exe      # Графическая версия (~85 MB)
+```
+
+Скопируйте `.exe` в любую папку, создайте `.env` с API ключом и запустите!
+
+**Подробная инструкция по сборке:** [docs/BUILD_INSTRUCTIONS.md](docs/BUILD_INSTRUCTIONS.md)
 
 ### 2️⃣ Настройка
 
@@ -123,6 +147,7 @@ python app_gui.py
 ├── app_gui.py                   # 🎨 GUI интерфейс
 ├── config.py                    # ⚙️ Конфигурация
 ├── verify_setup.py              # ✅ Проверка системы
+├── build.bat                    # 🔨 Сборка в .exe
 ├── requirements.txt             # 📦 Зависимости
 ├── .env                         # 🔐 API ключи (gitignore)
 │
@@ -137,14 +162,20 @@ python app_gui.py
 │   ├── ai_cache.py             # Кэш ответов
 │   └── ...
 │
-├── tests/                       # 🧪 Диагностические тесты
-│   ├── test_voice_system.py    # Полная система
-│   ├── test_piper_diagnostics.py
-│   ├── test_tts_voice.py
-│   ├── test_voice_verify.py
-│   └── ...
+├── docs/                        # 📚 Документация
+│   ├── BUILD_INSTRUCTIONS.md   # Инструкция по сборке .exe
+│   ├── BATCH_SCRIPTS_GUIDE.md  # Описание батников
+│   ├── OPTIMIZATION.md         # Оптимизация проекта
+│   ├── RUN_INSTRUCTIONS.md     # Инструкция по запуску
+│   └── VOICE_WORKING.md        # Проверка голосовых систем
 │
-├── scripts/                     # 🔧 Утилиты
+├── scripts/                     # 🔧 Скрипты запуска
+│   ├── run.bat                 # Универсальный лаунчер
+│   ├── run_app.bat             # Запуск GUI
+│   └── run_cli.bat             # Запуск CLI
+│
+├── tests/                       # 🧪 Диагностические тесты
+├── dist/                        # 📦 Собранные .exe файлы
 ├── .data/                       # 💾 AI кэш
 ├── .logs/                       # 📋 Логи
 └── .cache/                      # 🎵 Piper модели

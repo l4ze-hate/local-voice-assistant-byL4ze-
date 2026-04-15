@@ -52,3 +52,7 @@ Thumbs.db
 # --- Scripts (track .bat/.sh, exclude temp files) ---
 !scripts/*.bat
 !scripts/*.sh
+
+# --- Build artifacts (ignore generated) ---
+build/
+dist/
