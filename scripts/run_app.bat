@@ -4,7 +4,8 @@
 
 setlocal enabledelayedexpansion
 
-cd /d "%~dp0"
+:: Переход в корневую директорию проекта (scripts/../)
+cd /d "%~dp0.."
 
 echo ============================================================
 echo  Local Voice Assistant - Starting...

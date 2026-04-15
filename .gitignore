@@ -45,3 +45,10 @@ Thumbs.db
 .logs/
 .data/
 .cache/
+
+# --- Documentation (track all except drafts) ---
+!docs/*.md
+
+# --- Scripts (track .bat/.sh, exclude temp files) ---
+!scripts/*.bat
+!scripts/*.sh
